@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b5d3b" />
+  <title>PéléVTT Live — V1.3.1</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
+  <style>
+    :root{
+      --green:#0b5d3b;
+      --green-2:#117a50;
+      --cream:#f8f4e8;
+      --card:#ffffff;
+      --text:#20302a;
+      --muted:#66756f;
+      --danger:#b42318;
+      --warning:#b54708;
+      --border:#d9e2de;
+      --shadow:0 8px 24px rgba(23,52,41,.10);
+      --radius:16px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:linear-gradient(180deg,#eaf4ef 0%,var(--cream) 100%);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    header{
+      background:var(--green);
+      color:#fff;
+      padding:16px;
+      position:sticky;
+      top:0;
+      z-index:1000;
+      box-shadow:0 4px 14px rgba(0,0,0,.18);
+    }
+
+    header h1{margin:0;font-size:1.35rem}
+    header p{margin:4px 0 0;font-size:.92rem;opacity:.9}
+
+    main{max-width:1100px;margin:auto;padding:14px}
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+      margin-bottom:14px;
+    }
+
+    .hidden{display:none!important}
+    .grid{display:grid;gap:12px}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+    @media(max-width:760px){
+      .grid-2,.grid-3{grid-template-columns:1fr}
+      main{padding:10px}
+    }
+
+    button,input,select,textarea{
+      width:100%;
+      font:inherit;
+      border-radius:12px;
+      border:1px solid var(--border);
+      padding:13px;
+    }
+
+    button{
+      cursor:pointer;
+      background:var(--green);
+      color:#fff;
+      border:none;
+      font-weight:700;
+      transition:.15s ease;
+    }
+
+    button:hover{filter:brightness(1.05)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    button.secondary{background:#e9f1ed;color:var(--green)}
+    button.warning{background:var(--warning)}
+    button.danger{background:var(--danger)}
+    button.light{background:#fff;color:var(--green);border:1px solid var(--green)}
+    button.small{width:auto;padding:9px 12px;font-size:.92rem}
+
+    label{display:block;font-weight:700;margin:8px 0 6px}
+    .muted{color:var(--muted);font-size:.92rem}
+    .status{
+      border-radius:12px;
+      padding:12px;
+      margin-top:10px;
+      background:#edf7f1;
+      border:1px solid #cfe7d8;
+    }
+    .status.warn{background:#fff6e8;border-color:#f2d49c}
+    .status.danger{background:#fff0ee;border-color:#f4b6ae}
+
+    .role-buttons{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+    }
+    .role-buttons button{min-height:92px;font-size:1.05rem}
+    @media(max-width:760px){.role-buttons{grid-template-columns:1fr}}
+
+    #map{height:68vh;min-height:430px;border-radius:14px;overflow:hidden}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    .toolbar button{width:auto}
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:7px 10px;
+      border-radius:999px;
+      background:#edf2f0;
+      font-size:.9rem;
+      font-weight:700;
+      margin:3px 4px 3px 0;
+    }
+
+    .dot{width:10px;height:10px;border-radius:50%;background:#8c9b95}
+    .dot.ok{background:#1a8f55}
+    .dot.warn{background:#e69b22}
+    .dot.danger{background:#d13b2f}
+
+    .team-list{display:grid;gap:9px}
+    .team-row{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+      align-items:center;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:11px;
+    }
+    .team-row h3{margin:0 0 4px;font-size:1rem}
+    .team-row p{margin:0;color:var(--muted);font-size:.9rem}
+
+    .team-actions{display:flex;gap:6px;flex-wrap:wrap}
+    .team-actions button{width:auto;padding:8px 10px;font-size:.85rem}
+
+    .log{
+      background:#17211d;
+      color:#b8f5cf;
+      padding:10px;
+      border-radius:12px;
+      height:150px;
+      overflow:auto;
+      font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+      font-size:.84rem;
+      line-height:1.45;
+    }
+
+    .topline{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .leaflet-popup-content{min-width:210px}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
+    .stat-box{background:#f3f7f5;border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center}
+    .stat-box strong{display:block;font-size:1.12rem;color:var(--green)}
+    .stat-box span{font-size:.78rem;color:var(--muted)}
+    .history-table-wrap{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:12px}
+    .history-table{width:100%;border-collapse:collapse;font-size:.82rem}
+    .history-table th,.history-table td{padding:8px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+    .history-table th{position:sticky;top:0;background:#edf3f0;z-index:1}
+    @media(max-width:760px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .marker-label{
+      background:#fff;
+      border:2px solid #0b5d3b;
+      border-radius:10px;
+      padding:3px 7px;
+      font-weight:800;
+      box-shadow:0 2px 6px rgba(0,0,0,.2);
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🚴 PéléVTT Live — V1.3.1</h1>
+    <p>Suivi des équipes, relais TTV et supervision Géoloc‑PéléVTT24</p>
+  </header>
+
+  <main>
+    <section id="home" class="card">
+      <h2>Choisir mon rôle</h2>
+      <p class="muted">Cette V1 est prévue pour les essais terrain. Les codes facilitent l’usage, mais ne remplacent pas encore une authentification sécurisée.</p>
+
+      <div class="role-buttons">
+        <button onclick="openRole('anim')">🚴 Je suis Anim’</button>
+        <button onclick="openRole('gg')">🏁 Je suis TTV</button>
+        <button onclick="openRole('control')">🗺️ Géoloc‑PéléVTT24</button>
+      </div>
+
+      <div class="status" id="globalConnection">
+        <span class="pill"><span class="dot warn" id="connectionDot"></span><span id="connectionText">Connexion Firebase en attente…</span></span>
+      </div>
+    </section>
+
+    <section id="anim" class="card hidden">
+      <div class="topline">
+        <h2>🚴 Suivi de mon équipe</h2>
+        <button class="small light" onclick="goHome()">Retour</button>
+      </div>
+
+      <div id="animSetup">
+        <div class="grid grid-2">
+          <div>
+            <label for="animEventCode">Code événement</label>
+            <input id="animEventCode" value="PERIGORD2026" autocomplete="off" />
+          </div>
+          <div>
+            <label for="animTeam">Numéro d’équipe</label>
+            <select id="animTeam"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-2">
+          <div>
+            <label for="animName">Prénom de l’Anim’</label>
+            <input id="animName" placeholder="Ex. Thomas" autocomplete="given-name" />
+          </div>
+          <div>
+            <label for="animPhone">Numéro de téléphone</label>
+            <input id="animPhone" type="tel" placeholder="Ex. 06 12 34 56 78" autocomplete="tel" inputmode="tel" />
+          </div>
+        </div>
+
+        <p class="muted">L’équipe sera identifiée sous la forme : N° d’équipe — prénom — téléphone.</p>
+
+        <button style="margin-top:12px" onclick="prepareAnim()">Valider mon équipe</button>
+      </div>
+
+      <div id="animPanel" class="hidden">
+        <div class="status">
+          <strong id="animTeamTitle">Équipe</strong><br />
+          <span id="animStateText">Prête à démarrer</span>
+        </div>
+
+        <div class="grid grid-2" style="margin-top:12px">
+          <button id="startBtn" onclick="startTracking()">🚀 Top départ</button>
+          <button id="arrivalBtn" class="secondary" onclick="setTeamStatus('arrived')">🏁 Arrivée au relais</button>
+          <button class="warning" onclick="setTeamStatus('paused')">⏸️ Pause</button>
+          <button class="warning" onclick="setTeamStatus('mechanical')">🔧 Problème mécanique</button>
+          <button class="danger" onclick="confirmHelp()">⚠️ Besoin d’aide</button>
+          <button id="stopBtn" class="secondary" onclick="stopTracking()">🛑 Arrêter le suivi</button>
+        </div>
+
+        <div class="status" id="animTechStatus">
+          GPS non démarré.
+        </div>
+
+        <div class="log" id="animLog"></div>
+      </div>
+    </section>
+
+    <section id="gg" class="card hidden">
+      <div class="topline">
+        <h2>🏁 Poste TTV</h2>
+        <button class="small light" onclick="goHome()">Retour</button>
+      </div>
+
+      <div id="ggSetup">
+        <div class="grid grid-2">
+          <div>
+            <label for="ggEventCode">Code événement</label>
+            <input id="ggEventCode" value="PERIGORD2026" autocomplete="off" />
+          </div>
+          <div>
+            <label for="ggCheckpoint">Relais</label>
+            <select id="ggCheckpoint"></select>
+          </div>
+        </div>
+
+        <label for="ggName">Prénom du TTV</label>
+        <input id="ggName" placeholder="Ex. Claire" />
+
+        <label for="ggCode">Code du relais</label>
+        <input id="ggCode" placeholder="Ex. TTV01" autocomplete="off" />
+
+        <button style="margin-top:12px" onclick="openGGPanel()">Ouvrir le poste relais</button>
+      </div>
+
+      <div id="ggPanel" class="hidden">
+        <div class="status">
+          <strong id="ggTitle"></strong><br />
+          Touchez une action pour enregistrer le passage d’une équipe.
+        </div>
+        <div id="ggTeamList" class="team-list" style="margin-top:12px"></div>
+        <div class="log" id="ggLog"></div>
+      </div>
+    </section>
+
+    <section id="control" class="card hidden">
+      <div class="topline">
+        <h2>🗺️ Géoloc‑PéléVTT24</h2>
+        <button class="small light" onclick="goHome()">Retour</button>
+      </div>
+
+      <div id="controlSetup">
+        <label for="controlEventCode">Code événement</label>
+        <input id="controlEventCode" value="PERIGORD2026" autocomplete="off" />
+
+        <label for="adminCode">Code supervision</label>
+        <input id="adminCode" type="password" placeholder="Code administrateur" autocomplete="off" />
+
+        <button style="margin-top:12px" onclick="openControl()">Ouvrir la supervision</button>
+      </div>
+
+      <div id="controlPanel" class="hidden">
+        <div class="toolbar">
+          <button class="small secondary" onclick="fitAllMarkers()">Voir toutes les équipes</button>
+          <button class="small secondary" onclick="refreshControlList()">Actualiser la liste</button>
+          <button class="small warning" onclick="resetSelectedTeams()">Réinitialiser la sélection</button>
+          <button class="small danger" onclick="resetAllTeams()">Réinitialiser toutes les équipes</button>
+        </div>
+        <div class="status warn">
+          <strong>Réinitialisation distante</strong><br>
+          Cochez une ou plusieurs équipes ci-dessous. L’ordre efface leur dernière position et leur historique, puis arrête le suivi sur le téléphone de l’Anim’ dès qu’il est connecté.
+        </div>
+
+        <div id="map"></div>
+
+        <div class="grid grid-2" style="margin-top:12px">
+          <div>
+            <h3>État des équipes</h3>
+            <div id="controlTeamList" class="team-list"></div>
+          </div>
+          <div>
+            <h3>Journal</h3>
+            <div class="log" id="controlLog"></div>
+          </div>
+        </div>
+
+        <div id="historyPanel" class="card hidden" style="margin-top:14px;box-shadow:none">
+          <div class="topline">
+            <h3 id="historyTitle" style="margin:0">Historique d’équipe</h3>
+            <button class="small secondary" onclick="clearHistorySelection()">Masquer le tracé</button>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-box"><strong id="statPoints">0</strong><span>points GPS</span></div>
+            <div class="stat-box"><strong id="statDistance">0 km</strong><span>distance estimée</span></div>
+            <div class="stat-box"><strong id="statDuration">0 min</strong><span>durée suivie</span></div>
+            <div class="stat-box"><strong id="statAvgSpeed">0 km/h</strong><span>vitesse moyenne</span></div>
+          </div>
+          <p class="muted">La vitesse moyenne est calculée à partir de la distance GPS cumulée et du temps entre le premier et le dernier point.</p>
+          <div class="history-table-wrap">
+            <table class="history-table">
+              <thead><tr><th>Heure</th><th>Latitude</th><th>Longitude</th><th>Précision</th><th>Vitesse GPS</th></tr></thead>
+              <tbody id="historyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBuaqrHLClg9dDCL0bPIowhVMcNvwmkjVE",
+    authDomain: "suivi-geoloc.firebaseapp.com",
+    databaseURL: "https://suivi-geoloc-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "suivi-geoloc",
+    storageBucket: "suivi-geoloc.firebasestorage.app",
+    messagingSenderId: "257220080213",
+    appId: "1:257220080213:web:f9a5289c4b07edfc945adc"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const serverTimestamp = firebase.database.ServerValue.TIMESTAMP;
+
+  const APP = {
+    demoAdminCode: "GEOLOC24",
+    teams: Array.from({length:15}, (_,i) => {
+      const number = i + 1;
+      const palette = ["#d13b2f","#2d6cdf","#2f8f46","#d99c13","#e76f24","#7a4fc2","#00838f","#ad1457","#5d4037","#455a64","#558b2f","#6a1b9a","#0277bd","#ef6c00","#37474f"];
+      return {
+        id: `equipe-${String(number).padStart(2,"0")}`,
+        number,
+        name: `Équipe n°${number}`,
+        color: palette[i]
+      };
+    }),
+    checkpoints: Array.from({length:10}, (_,i) => {
+      const number = i + 1;
+      return {
+        id: `relais-${number}`,
+        name: `Relais ${number}`,
+        code: `TTV${String(number).padStart(2,"0")}`,
+        lat: 45.18 - (i * 0.025),
+        lng: 0.72 + (i * 0.045)
+      };
+    })
+  };
+
+  let currentRole = null;
+  let currentEventId = null;
+  let currentTeam = null;
+  let currentAnimName = "";
+  let currentAnimPhone = "";
+  let currentCheckpoint = null;
+  let watchId = null; // identifiant de l’intervalle de ping
+  const PING_INTERVAL_MS = 10 * 60 * 1000;
+  let map = null;
+  let markers = {};
+  let checkpointMarkers = {};
+  let controlRef = null;
+  let ggRef = null;
+  let historyRef = null;
+  let animResetRef = null;
+  let historyLine = null;
+  let historyStartMarker = null;
+  let historyEndMarker = null;
+
+  function normalizeId(value) {
+    return value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  }
+
+  function log(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const now = new Date().toLocaleTimeString("fr-FR");
+    el.innerHTML += `${now} | ${escapeHtml(message)}<br>`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function openRole(role) {
+    currentRole = role;
+    document.querySelectorAll("main > section").forEach(el => el.classList.add("hidden"));
+    document.getElementById(role).classList.remove("hidden");
+    if (role === "control" && map) setTimeout(() => map.invalidateSize(), 150);
+  }
+
+  function goHome() {
+    stopRoleListeners();
+    document.querySelectorAll("main > section").forEach(el => el.classList.add("hidden"));
+    document.getElementById("home").classList.remove("hidden");
+  }
+
+  function stopRoleListeners() {
+    if (controlRef) { controlRef.off(); controlRef = null; }
+    if (ggRef) { ggRef.off(); ggRef = null; }
+    if (historyRef) { historyRef.off(); historyRef = null; }
+    if (animResetRef) { animResetRef.off(); animResetRef = null; }
+  }
+
+  function populateSelects() {
+    document.getElementById("animTeam").innerHTML = APP.teams
+      .map(t => `<option value="${t.id}">Équipe n°${t.number}</option>`).join("");
+
+    document.getElementById("ggCheckpoint").innerHTML = APP.checkpoints
+      .map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  }
+
+  db.ref(".info/connected").on("value", snap => {
+    const connected = snap.val() === true;
+    document.getElementById("connectionText").textContent =
+      connected ? "Connexion Firebase active" : "Connexion absente — les envois peuvent être retardés";
+    const dot = document.getElementById("connectionDot");
+    dot.className = "dot " + (connected ? "ok" : "warn");
+  });
+
+  function prepareAnim() {
+    const eventCode = normalizeId(document.getElementById("animEventCode").value);
+    const teamId = document.getElementById("animTeam").value;
+    const animName = document.getElementById("animName").value.trim();
+    const animPhoneRaw = document.getElementById("animPhone").value.trim();
+    const animPhone = normalizePhone(animPhoneRaw);
+    const team = APP.teams.find(t => t.id === teamId);
+
+    if (!eventCode || !animName || !animPhoneRaw) {
+      alert("Merci de renseigner le code événement, le numéro d’équipe, le prénom et le téléphone.");
+      return;
+    }
+    if (!team) {
+      alert("Numéro d’équipe incorrect.");
+      return;
+    }
+    if (animPhone.length < 10) {
+      alert("Le numéro de téléphone semble incomplet.");
+      return;
+    }
+
+    currentEventId = eventCode;
+    currentTeam = team;
+    currentAnimName = animName;
+    currentAnimPhone = formatPhone(animPhone);
+    const displayName = `N°${team.number}_${animName}_${currentAnimPhone}`;
+
+    document.getElementById("animSetup").classList.add("hidden");
+    document.getElementById("animPanel").classList.remove("hidden");
+    document.getElementById("animTeamTitle").textContent = displayName;
+    document.getElementById("animStateText").textContent = "Prête à démarrer";
+    log("animLog", `Équipe validée : ${displayName}.`);
+
+    animSessionStartedAt = Date.now();
+    db.ref(`events/${currentEventId}/teams/${team.id}`).update({
+      number: team.number,
+      name: team.name,
+      displayName,
+      color: team.color,
+      animName,
+      animPhone: currentAnimPhone,
+      status: "ready",
+      updatedAt: serverTimestamp
+    });
+
+    listenForRemoteReset();
+  }
+
+  function normalizePhone(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function formatPhone(value) {
+    const digits = normalizePhone(value);
+    if (digits.length === 10) return digits.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+    return digits;
+  }
+
+  function listenForRemoteReset() {
+    if (animResetRef) animResetRef.off();
+    animResetRef = db.ref(`events/${currentEventId}/teams/${currentTeam.id}/resetRequestedAt`);
+    animResetRef.on("value", snap => {
+      const requestedAt = Number(snap.val() || 0);
+      if (requestedAt && requestedAt > animSessionStartedAt) {
+        applyRemoteReset();
+        animSessionStartedAt = Date.now();
+      }
+    });
+  }
+
+  function applyRemoteReset() {
+    if (watchId !== null) {
+      window.clearInterval(watchId);
+      watchId = null;
+    }
+
+    document.getElementById("animStateText").textContent = "Réinitialisée par Géoloc‑PéléVTT24";
+    document.getElementById("animTechStatus").className = "status danger";
+    document.getElementById("animTechStatus").innerHTML =
+      "🛑 Suivi arrêté à distance.<br>Contactez Géoloc‑PéléVTT24 avant de redémarrer.";
+    log("animLog", "Réinitialisation distante reçue : suivi GPS arrêté.");
+  }
+
+  function startTracking() {
+    if (!currentTeam || !currentEventId) return;
+    if (!navigator.geolocation) {
+      alert("La géolocalisation n’est pas disponible sur cet appareil.");
+      return;
+    }
+    if (watchId !== null) {
+      alert("Le suivi est déjà actif.");
+      return;
+    }
+
+    setTeamStatus("moving", false);
+    document.getElementById("animTechStatus").textContent = "Acquisition du premier point GPS…";
+    log("animLog", "Suivi démarré : un ping immédiat puis toutes les 10 minutes.");
+
+    requestAndSendPosition();
+    watchId = window.setInterval(requestAndSendPosition, PING_INTERVAL_MS);
+  }
+
+  function requestAndSendPosition() {
+    if (!currentTeam || !currentEventId) return;
+    navigator.geolocation.getCurrentPosition(
+      sendPosition,
+      err => {
+        document.getElementById("animTechStatus").className = "status danger";
+        document.getElementById("animTechStatus").textContent = `Erreur GPS : ${err.message}`;
+        log("animLog", `Ping GPS impossible : ${err.message}`);
+      },
+      {
+        enableHighAccuracy: false,
+        maximumAge: 120000,
+        timeout: 30000
+      }
+    );
+  }
+
+  function sendPosition(pos) {
+    const now = Date.now();
+    const coords = pos.coords;
+    const payload = {
+      lat: coords.latitude,
+      lng: coords.longitude,
+      accuracy: Math.round(coords.accuracy || 0),
+      speed: coords.speed == null ? null : Math.round(coords.speed * 36) / 10,
+      heading: coords.heading == null ? null : Math.round(coords.heading),
+      timestamp: serverTimestamp,
+      clientTimestamp: now
+    };
+
+    const nextPing = new Date(now + PING_INTERVAL_MS).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
+    document.getElementById("animTechStatus").className = "status";
+    document.getElementById("animTechStatus").innerHTML =
+      `🟢 Dernier ping envoyé à ${new Date(now).toLocaleTimeString("fr-FR")}<br>` +
+      `Précision : ${payload.accuracy} m — prochain ping prévu vers ${nextPing}`;
+
+    const teamRef = `events/${currentEventId}/teams/${currentTeam.id}`;
+    // Conserver l’historique en ajoutant le même ping ponctuel.
+    db.ref(`events/${currentEventId}/positions/${currentTeam.id}`).push(payload);
+    db.ref(teamRef).update({
+      lastPosition: payload,
+      status: "moving",
+      updatedAt: serverTimestamp
+    });
+    log("animLog", `Ping envoyé : ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`);
+  }
+
+  function setTeamStatus(status, writeLog = true) {
+    if (!currentTeam || !currentEventId) return;
+
+    const labels = {
+      ready:"Prête",
+      moving:"En déplacement",
+      paused:"En pause",
+      mechanical:"Problème mécanique",
+      arrived:"Arrivée au relais",
+      help:"Besoin d’aide",
+      stopped:"Suivi arrêté"
+    };
+
+    db.ref(`events/${currentEventId}/teams/${currentTeam.id}`).update({
+      status,
+      updatedAt: serverTimestamp
+    });
+
+    document.getElementById("animStateText").textContent = labels[status] || status;
+    if (writeLog) log("animLog", `Statut : ${labels[status] || status}`);
+  }
+
+  function confirmHelp() {
+    if (!confirm("Confirmer le signalement « Besoin d’aide » ?")) return;
+    setTeamStatus("help");
+    db.ref(`events/${currentEventId}/alerts`).push({
+      teamId: currentTeam.id,
+      teamName: currentTeam.name,
+      animName: currentAnimName,
+      animPhone: currentAnimPhone,
+      type: "help",
+      active: true,
+      createdAt: serverTimestamp
+    });
+  }
+
+  function stopTracking() {
+    if (watchId !== null) {
+      window.clearInterval(watchId);
+      watchId = null;
+    }
+    setTeamStatus("stopped");
+    document.getElementById("animTechStatus").className = "status warn";
+    document.getElementById("animTechStatus").textContent = "Suivi GPS arrêté.";
+    log("animLog", "Suivi arrêté.");
+  }
+
+  function openGGPanel() {
+    const eventCode = normalizeId(document.getElementById("ggEventCode").value);
+    const checkpointId = document.getElementById("ggCheckpoint").value;
+    const ggName = document.getElementById("ggName").value.trim();
+    const enteredCode = document.getElementById("ggCode").value.trim().toUpperCase();
+    const checkpoint = APP.checkpoints.find(c => c.id === checkpointId);
+
+    if (!eventCode || !ggName || !enteredCode) {
+      alert("Merci de renseigner tous les champs.");
+      return;
+    }
+    if (!checkpoint || enteredCode !== checkpoint.code) {
+      alert("Code relais incorrect.");
+      return;
+    }
+
+    currentEventId = eventCode;
+    currentCheckpoint = {...checkpoint, ggName};
+
+    document.getElementById("ggSetup").classList.add("hidden");
+    document.getElementById("ggPanel").classList.remove("hidden");
+    document.getElementById("ggTitle").textContent = `${checkpoint.name} — TTV ${ggName}`;
+
+    renderGGTeams({}, {});
+    ggRef = db.ref(`events/${currentEventId}`);
+    ggRef.on("value", snap => {
+      const data = snap.val() || {};
+      renderGGTeams((data.passages || {})[checkpoint.id] || {}, data.teams || {});
+    });
+    log("ggLog", "Poste relais ouvert.");
+  }
+
+  function renderGGTeams(passages, teamsData = {}) {
+    const container = document.getElementById("ggTeamList");
+    container.innerHTML = APP.teams.map(team => {
+      const p = passages[team.id] || {};
+      const registered = teamsData[team.id] || {};
+      const displayName = registered.displayName || team.name;
+      const arrived = p.arrivedAt ? formatTime(p.arrivedAt) : "Pas encore enregistrée";
+      const departed = p.departedAt ? formatTime(p.departedAt) : "—";
+      return `
+        <div class="team-row">
+          <div>
+            <h3><span style="color:${team.color}">●</span> ${escapeHtml(displayName)}</h3>
+            <p>Arrivée : ${arrived} · Départ : ${departed}</p>
+          </div>
+          <div class="team-actions">
+            <button onclick="recordPassage('${team.id}','arrived')">Arrivée</button>
+            <button class="secondary" onclick="recordPassage('${team.id}','departed')">Départ</button>
+            <button class="danger" onclick="recordPassage('${team.id}','issue')">Problème</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function recordPassage(teamId, action) {
+    if (!currentCheckpoint || !currentEventId) return;
+    const team = APP.teams.find(t => t.id === teamId);
+    const base = `events/${currentEventId}/passages/${currentCheckpoint.id}/${teamId}`;
+    const updates = {
+      teamName: team.name,
+      checkpointName: currentCheckpoint.name,
+      ggName: currentCheckpoint.ggName,
+      updatedAt: serverTimestamp
+    };
+
+    if (action === "arrived") updates.arrivedAt = serverTimestamp;
+    if (action === "departed") updates.departedAt = serverTimestamp;
+    if (action === "issue") {
+      const note = prompt("Décrire brièvement le problème :") || "Problème signalé";
+      updates.issue = note;
+      updates.issueAt = serverTimestamp;
+    }
+
+    db.ref(base).update(updates);
+    log("ggLog", `${team.name} : ${action === "arrived" ? "arrivée" : action === "departed" ? "départ" : "problème"} enregistré.`);
+  }
+
+  function openControl() {
+    const eventCode = normalizeId(document.getElementById("controlEventCode").value);
+    const adminCode = document.getElementById("adminCode").value.trim().toUpperCase();
+
+    if (!eventCode || !adminCode) {
+      alert("Merci de renseigner les deux champs.");
+      return;
+    }
+    if (adminCode !== APP.demoAdminCode) {
+      alert("Code supervision incorrect.");
+      return;
+    }
+
+    currentEventId = eventCode;
+    document.getElementById("controlSetup").classList.add("hidden");
+    document.getElementById("controlPanel").classList.remove("hidden");
+
+    initMap();
+    listenControl();
+    log("controlLog", "Supervision ouverte.");
+  }
+
+  function initMap() {
+    if (!map) {
+      map = L.map("map").setView([45.12, 0.88], 10);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(map);
+    }
+    setTimeout(() => map.invalidateSize(), 150);
+
+    APP.checkpoints.forEach(cp => {
+      if (!checkpointMarkers[cp.id]) {
+        checkpointMarkers[cp.id] = L.circleMarker([cp.lat, cp.lng], {
+          radius: 8,
+          color: "#4f5d57",
+          fillColor: "#ffffff",
+          fillOpacity: 1,
+          weight: 3
+        }).addTo(map).bindPopup(`<strong>${cp.name}</strong>`);
+      }
+    });
+  }
+
+  function listenControl() {
+    if (controlRef) controlRef.off();
+    controlRef = db.ref(`events/${currentEventId}/teams`);
+    controlRef.on("value", snap => {
+      const teamsData = snap.val() || {};
+      updateMap(teamsData);
+      renderControlTeams(teamsData);
+    });
+  }
+
+  function updateMap(teamsData) {
+    Object.keys(markers).forEach(teamId => {
+      const data = teamsData[teamId];
+      if (!data || !data.lastPosition || data.status === "reset") {
+        map.removeLayer(markers[teamId]);
+        delete markers[teamId];
+      }
+    });
+
+    Object.entries(teamsData).forEach(([teamId, data]) => {
+      const pos = data.lastPosition;
+      if (!pos || typeof pos.lat !== "number" || typeof pos.lng !== "number") return;
+
+      const team = APP.teams.find(t => t.id === teamId) || {
+        id: teamId,
+        name: data.name || teamId,
+        color: data.color || "#0b5d3b"
+      };
+
+      const ageMs = Date.now() - Number(pos.clientTimestamp || 0);
+      const stale = ageMs > 1500000;
+      const color = stale ? "#777777" : team.color;
+
+      if (!markers[teamId]) {
+        markers[teamId] = L.circleMarker([pos.lat, pos.lng], {
+          radius: 11,
+          color: "#ffffff",
+          fillColor: color,
+          fillOpacity: 1,
+          weight: 3
+        }).addTo(map);
+        markers[teamId].bindTooltip(team.name, {
+          permanent: true,
+          direction: "top",
+          className: "marker-label"
+        });
+      } else {
+        markers[teamId].setLatLng([pos.lat, pos.lng]);
+        markers[teamId].setStyle({fillColor: color});
+      }
+
+      const speed = pos.speed == null ? "—" : `${pos.speed} km/h`;
+      const updated = pos.clientTimestamp ? new Date(pos.clientTimestamp).toLocaleTimeString("fr-FR") : "—";
+      markers[teamId].bindPopup(`
+        <strong>${escapeHtml(data.displayName || team.name)}</strong><br>
+        Anim’ : ${escapeHtml(data.animName || "—")}<br>
+        Téléphone : ${escapeHtml(data.animPhone || "—")}<br>
+        État : ${escapeHtml(statusLabel(data.status))}<br>
+        Dernier point : ${updated}<br>
+        Précision : ${pos.accuracy ?? "—"} m<br>
+        Vitesse : ${speed}
+      `);
+    });
+  }
+
+  function renderControlTeams(teamsData) {
+    const container = document.getElementById("controlTeamList");
+    container.innerHTML = APP.teams.map(team => {
+      const data = teamsData[team.id] || {};
+      const pos = data.lastPosition || {};
+      const age = pos.clientTimestamp ? Math.max(0, Math.round((Date.now() - pos.clientTimestamp) / 1000)) : null;
+      const freshness = age == null ? "Aucune position" : age < 60 ? `il y a ${age} s` : `il y a ${Math.round(age/60)} min`;
+      const state = statusLabel(data.status || "unknown");
+      const displayName = data.displayName || team.name;
+      const alertClass = data.status === "help" ? "danger" : age != null && age > 1500 ? "warn" : "";
+
+      return `
+        <div class="team-row">
+          <div>
+            <h3>
+              <input class="team-reset-checkbox" type="checkbox" value="${team.id}" style="width:auto;margin-right:8px;transform:scale(1.25)">
+              <span style="color:${team.color}">●</span> ${escapeHtml(displayName)}
+            </h3>
+            <p>${state} · ${freshness}</p>
+          </div>
+          <button class="small ${alertClass}" onclick="showTeamHistory('${team.id}')">Historique</button>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function getSelectedTeamIds() {
+    return [...document.querySelectorAll(".team-reset-checkbox:checked")].map(el => el.value);
+  }
+
+  function resetSelectedTeams() {
+    const teamIds = getSelectedTeamIds();
+    if (!teamIds.length) {
+      alert("Cochez au moins une équipe à réinitialiser.");
+      return;
+    }
+    resetTeams(teamIds);
+  }
+
+  function resetAllTeams() {
+    if (!confirm("Réinitialiser toutes les équipes, leurs positions et leurs historiques ?")) return;
+    resetTeams(APP.teams.map(team => team.id), true);
+  }
+
+  function resetTeams(teamIds, alreadyConfirmed = false) {
+    const names = teamIds.map(id => APP.teams.find(t => t.id === id)?.name || id);
+    if (!alreadyConfirmed && !confirm(`Réinitialiser : ${names.join(", ")} ?\n\nLes positions et historiques seront effacés.`)) return;
+
+    const updates = {};
+    const requestedAt = Date.now();
+    teamIds.forEach(teamId => {
+      const team = APP.teams.find(t => t.id === teamId);
+      updates[`events/${currentEventId}/teams/${teamId}/lastPosition`] = null;
+      updates[`events/${currentEventId}/teams/${teamId}/status`] = "reset";
+      updates[`events/${currentEventId}/teams/${teamId}/updatedAt`] = serverTimestamp;
+      updates[`events/${currentEventId}/teams/${teamId}/resetRequestedAt`] = requestedAt;
+      updates[`events/${currentEventId}/positions/${teamId}`] = null;
+      APP.checkpoints.forEach(cp => {
+        updates[`events/${currentEventId}/passages/${cp.id}/${teamId}`] = null;
+      });
+    });
+
+    db.ref().update(updates).then(() => {
+      teamIds.forEach(teamId => {
+        if (markers[teamId]) {
+          map.removeLayer(markers[teamId]);
+          delete markers[teamId];
+        }
+      });
+      if (selectedHistoryTeamId && teamIds.includes(selectedHistoryTeamId)) clearHistorySelection();
+      log("controlLog", `${names.join(", ")} : réinitialisation envoyée.`);
+      alert("Réinitialisation effectuée. L’arrêt distant sera reçu par les téléphones connectés.");
+    }).catch(err => {
+      log("controlLog", `Erreur de réinitialisation : ${err.message}`);
+      alert("La réinitialisation a échoué : " + err.message);
+    });
+  }
+
+  function refreshControlList() {
+    if (!currentEventId) return;
+    db.ref(`events/${currentEventId}/teams`).once("value").then(snap => {
+      renderControlTeams(snap.val() || {});
+      log("controlLog", "Liste actualisée.");
+    });
+  }
+
+
+  function showTeamHistory(teamId) {
+    const team = APP.teams.find(t => t.id === teamId);
+    focusTeam(teamId);
+    document.getElementById("historyPanel").classList.remove("hidden");
+    document.getElementById("historyTitle").textContent = `Historique — ${team ? team.name : teamId}`;
+    document.getElementById("historyTableBody").innerHTML = `<tr><td colspan="5">Chargement des positions…</td></tr>`;
+
+    if (historyRef) historyRef.off();
+    historyRef = db.ref(`events/${currentEventId}/positions/${teamId}`);
+    historyRef.on("value", snap => {
+      const points = Object.values(snap.val() || {})
+        .filter(p => typeof p.lat === "number" && typeof p.lng === "number")
+        .map(p => ({...p, time:Number(p.clientTimestamp || p.timestamp || 0)}))
+        .filter(p => p.time > 0)
+        .sort((a,b) => a.time - b.time);
+      renderTeamHistory(teamId, points);
+    });
+  }
+
+  function renderTeamHistory(teamId, originalPoints) {
+    const team = APP.teams.find(t => t.id === teamId) || {name:teamId,color:"#0b5d3b"};
+    const filtered = [];
+
+    for (const point of originalPoints) {
+      if (point.accuracy && point.accuracy > 100) continue;
+      if (!filtered.length) { filtered.push(point); continue; }
+
+      const previous = filtered[filtered.length - 1];
+      const dtHours = (point.time - previous.time) / 3600000;
+      const distanceKm = haversineKm(previous.lat, previous.lng, point.lat, point.lng);
+      const impliedSpeed = dtHours > 0 ? distanceKm / dtHours : 0;
+
+      if (dtHours > 0 && impliedSpeed <= 65) filtered.push(point);
+    }
+
+    let distanceKm = 0;
+    for (let i = 1; i < filtered.length; i++) {
+      distanceKm += haversineKm(filtered[i-1].lat, filtered[i-1].lng, filtered[i].lat, filtered[i].lng);
+    }
+
+    const durationMs = filtered.length > 1 ? filtered.at(-1).time - filtered[0].time : 0;
+    const averageSpeed = durationMs > 0 ? distanceKm / (durationMs / 3600000) : 0;
+
+    document.getElementById("statPoints").textContent = filtered.length;
+    document.getElementById("statDistance").textContent = `${distanceKm.toFixed(distanceKm < 10 ? 2 : 1)} km`;
+    document.getElementById("statDuration").textContent = formatDuration(durationMs);
+    document.getElementById("statAvgSpeed").textContent = `${averageSpeed.toFixed(1)} km/h`;
+
+    const recent = [...filtered].reverse().slice(0,30);
+    document.getElementById("historyTableBody").innerHTML = recent.length
+      ? recent.map(p => `<tr>
+          <td>${new Date(p.time).toLocaleTimeString("fr-FR")}</td>
+          <td>${p.lat.toFixed(5)}</td>
+          <td>${p.lng.toFixed(5)}</td>
+          <td>${p.accuracy == null ? "—" : `${Math.round(p.accuracy)} m`}</td>
+          <td>${p.speed == null ? "—" : `${Number(p.speed).toFixed(1)} km/h`}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="5">Aucun point historique disponible pour cette équipe.</td></tr>`;
+
+    drawHistoryLine(team, filtered);
+    log("controlLog", `${team.name} : ${filtered.length} points historiques chargés.`);
+  }
+
+  function drawHistoryLine(team, points) {
+    clearHistoryLayersOnly();
+    if (!map || !points.length) return;
+
+    const latLngs = points.map(p => [p.lat,p.lng]);
+    historyLine = L.polyline(latLngs,{color:team.color,weight:5,opacity:.85}).addTo(map);
+    historyStartMarker = L.circleMarker(latLngs[0],{radius:7,color:"#fff",fillColor:"#16734a",fillOpacity:1,weight:3})
+      .addTo(map).bindPopup(`Départ enregistré — ${escapeHtml(team.name)}`);
+    historyEndMarker = L.circleMarker(latLngs.at(-1),{radius:8,color:"#fff",fillColor:team.color,fillOpacity:1,weight:3})
+      .addTo(map).bindPopup(`Dernier point — ${escapeHtml(team.name)}`);
+
+    if (latLngs.length > 1) map.fitBounds(historyLine.getBounds().pad(.12));
+    else map.setView(latLngs[0],16);
+  }
+
+  function clearHistoryLayersOnly() {
+    if (historyLine && map) map.removeLayer(historyLine);
+    if (historyStartMarker && map) map.removeLayer(historyStartMarker);
+    if (historyEndMarker && map) map.removeLayer(historyEndMarker);
+    historyLine = historyStartMarker = historyEndMarker = null;
+  }
+
+  function clearHistorySelection() {
+    if (historyRef) { historyRef.off(); historyRef = null; }
+    if (animResetRef) { animResetRef.off(); animResetRef = null; }
+    clearHistoryLayersOnly();
+    document.getElementById("historyPanel").classList.add("hidden");
+  }
+
+  function haversineKm(lat1,lon1,lat2,lon2) {
+    const R=6371, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+
+  function formatDuration(ms) {
+    if (!ms || ms < 0) return "0 min";
+    const totalMinutes=Math.round(ms/60000);
+    const hours=Math.floor(totalMinutes/60), minutes=totalMinutes%60;
+    return hours ? `${hours} h ${String(minutes).padStart(2,"0")}` : `${minutes} min`;
+  }
+
+  function focusTeam(teamId) {
+    const marker = markers[teamId];
+    if (!marker) {
+      alert("Aucune position disponible pour cette équipe.");
+      return;
+    }
+    map.setView(marker.getLatLng(), 16);
+    marker.openPopup();
+  }
+
+  function fitAllMarkers() {
+    const layers = [...Object.values(markers), ...Object.values(checkpointMarkers)];
+    if (!layers.length) return;
+    const group = L.featureGroup(layers);
+    map.fitBounds(group.getBounds().pad(0.15));
+  }
+
+  function statusLabel(status) {
+    const labels = {
+      ready:"Prête",
+      moving:"En déplacement",
+      paused:"En pause",
+      mechanical:"Problème mécanique",
+      arrived:"Arrivée au relais",
+      help:"Besoin d’aide",
+      stopped:"Suivi arrêté",
+      reset:"Réinitialisée",
+      unknown:"Sans nouvelles"
+    };
+    return labels[status] || status || "Sans nouvelles";
+  }
+
+  function formatTime(timestamp) {
+    const n = Number(timestamp);
+    if (!n) return "—";
+    return new Date(n).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
+  }
+
+  window.addEventListener("beforeunload", () => {
+    if (watchId !== null) window.clearInterval(watchId);
+  });
+
+  populateSelects();
+</script>
+</body>
+</html>
